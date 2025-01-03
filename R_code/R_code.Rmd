@@ -1,0 +1,123 @@
+---
+title: "R-code"
+author: "JY"
+date: "2025-01-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Load necessary libraries
+#install.packages("ggplot2")
+#install.packages("dendextend")
+library(ggplot2)
+library(dendextend)
+library(dplyr)
+library(reshape2)
+library(ggdendro)
+
+# Load your data (replace with your actual file path)
+data <- read.csv("../input/liquid_growth.csv") %>% mutate(plasmid_genotype = paste(plasmid, Genotype, sep =";"))
+
+# make a column that concatenate the plasmid and genotype
+
+
+# Pivot data: Reshape to have rows as strains and columns as media
+pivot_data <- dcast(data, yL ~ medium, value.var = "OD", fun.aggregate = mean) %>% filter(!is.na(yL)) 
+# Set rownames and remove the 'yL' column for clustering
+rownames(pivot_data) <- pivot_data$yL
+pivot_data <- pivot_data[ , -1]
+
+# Normalize the data (z-score standardization)
+pivot_data_scaled <- scale(pivot_data)
+
+# Perform hierarchical clustering using Ward's method
+distance_matrix <- dist(pivot_data_scaled, method = "euclidean")
+hc <- hclust(distance_matrix, method = "ward.D2")
+
+# Plot the dendrogram
+dend <- as.dendrogram(hc)
+
+# Adjust k for the number of branches (clusters) you want
+k <- 2  # Change this value to the desired number of clusters
+
+# Color the branches based on the chosen number of clusters
+dend <- color_branches(dend, k = k)
+
+# Dynamically create the PDF filename based on k
+pdf_filename <- paste("../output/dendrogram_yeast_strains_k", k, ".pdf", sep = "")
+# Open a PDF device to save the plot with the dynamic filename
+pdf(pdf_filename, width = 10, height = 8)
+# Plot the dendrogram with the chosen number of clusters
+plot(dend, main = paste("Dendrogram of Yeast Strains (k =", k, "clusters)"), horiz = FALSE)
+# Close the PDF device to save the plot
+dev.off()
+
+# test code
+#for (i in yL_order) {
+#  test_plasmid_genotype <- data %>% filter(yL==i) %>% select(yL,plasmid,Genotype) %>% distinct()
+#  final_match <- add_row(.,)
+#}
+```
+
+# Combine the biological replicates; use the plasmid and genotype as the dendrogram figure label
+```{r}
+# Pivot data: Reshape to have rows as strains and columns as media
+pivot_data <- dcast(data, plasmid_genotype ~ medium, value.var = "OD", fun.aggregate = mean) %>% filter(plasmid_genotype != "empty_well;empty_well") 
+# Set rownames and remove the 'yL' column for clustering
+rownames(pivot_data) <- pivot_data$plasmid_genotype
+pivot_data <- pivot_data[ , -1]
+
+# Normalize the data (z-score standardization)
+pivot_data_scaled <- scale(pivot_data)
+
+# Perform hierarchical clustering using Ward's method
+distance_matrix <- dist(pivot_data_scaled, method = "euclidean")
+hc <- hclust(distance_matrix, method = "ward.D2")
+
+# Plot the dendrogram
+dend <- as.dendrogram(hc)
+
+# Adjust k for the number of branches (clusters) you want
+k <- 2  # Change this value to the desired number of clusters
+
+# Color the branches based on the chosen number of clusters
+dend <- color_branches(dend, k = k)
+
+# Dynamically create the PDF filename based on k
+pdf_filename <- paste("../output/dendrogram_genotype_k", k, ".pdf", sep = "")
+# Open a PDF device to save the plot with the dynamic filename
+pdf(pdf_filename, width = 10, height = 10)
+# Plot the dendrogram with the chosen number of clusters
+plot(dend, main = paste("Dendrogram of Yeast Strains (k =", k, "clusters)"), horiz = FALSE)
+# Close the PDF device to save the plot
+dev.off()
+
+
+#another way
+library("ggdendro", "dendextend")
+
+#k <- 2
+# Dynamically create the PDF filename based on k
+#pdf_ggplot <- paste("../output/Clustering_k", k, ".pdf", sep = "")
+# Open a PDF device to save the plot with the dynamic filename
+#pdf(pdf_ggplot, width = 10, height = 10)
+hc %>% 
+  as.dendrogram %>%
+  set("branches_k_color", k = 2) %>% 
+  set("branches_lwd", 1.6) %>%
+  as.ggdend( ) %>%
+  ggplot(horiz=TRUE, offset_labels = -3.4) +
+  theme_minimal(9) +
+  labs(x = "Strains", 
+       y = "Distance") +
+  scale_y_continuous(position = "left") + 
+  theme(axis.text.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank()
+        )  
+#dev.off()
+        
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
